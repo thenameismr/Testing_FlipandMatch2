@@ -7,10 +7,12 @@ public class CardFlip : MonoBehaviour
     public GameObject back;
     public float flipSpeed = 5f;
     public int cardID;
+    public AudioSource cardFlipSound;
 
     private bool isFlipped = false;
     private bool isFlipping = false;
     private MeshRenderer frontMeshRenderer;
+    private bool sideSwitched;
 
     void Awake()
     {
@@ -33,17 +35,23 @@ public class CardFlip : MonoBehaviour
 
     void OnMouseDown()
     {
+        if(!IntroManager.Instance.canStart)
+            return;
+
         if (isFlipping || isFlipped) 
             return;
+
         GameManager.Instance.CardClicked(this);
     }
 
     public IEnumerator FlipAnimation(bool showFront)
     {
         isFlipping = true;
-        float startAngle = transform.localEulerAngles.x;
-        float endAngle = startAngle + (showFront ? -180f : 180f);
+        sideSwitched = false;
+        float startAngle = Mathf.Repeat(transform.localEulerAngles.y, 360f);
+        float endAngle = showFront ? startAngle + 180f : startAngle - 180f;
 
+        cardFlipSound.Play();
         float t = 0f;
         while (t < 1f)
         {
@@ -51,8 +59,9 @@ public class CardFlip : MonoBehaviour
             float angle = Mathf.LerpAngle(startAngle, endAngle, Mathf.SmoothStep(0f, 1f, t));
             transform.localEulerAngles = new Vector3(angle, transform.localEulerAngles.y, transform.localEulerAngles.z);
 
-            if (t >= 0.5f && t < 0.52f)
+            if (!sideSwitched && t >= 0.5f)
             {
+                sideSwitched = true;
                 if (showFront) 
                     ShowFront();
                 else 

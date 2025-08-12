@@ -267,6 +267,7 @@ MonoBehaviour:
   back: {fileID: 1738064902113130583}
   flipSpeed: 5
   cardID: 0
+  cardFlipSound: {fileID: 4720509488118414849, guid: b5845fb4275df5b4f9f7e5ccae19cd70, type: 3}
 --- !u!65 &47517460750359107
 BoxCollider:
   m_ObjectHideFlags: 0

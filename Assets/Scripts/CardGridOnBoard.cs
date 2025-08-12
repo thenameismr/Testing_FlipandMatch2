@@ -5,12 +5,13 @@ public class CardGridOnBoard : MonoBehaviour
 {
     public GameObject cardPrefab;
     public Transform boardTransform;
-    public int rows = 3;
-    public int columns = 4;
     public float heightOffset = 0.01f;
     public float paddingX = 0.1f;
     public float paddingZ = 0.1f;
     public List<Sprite> cardSprites;
+
+    private int rows;
+    private int columns;
 
     [System.Serializable]
     public struct CardData
@@ -21,33 +22,37 @@ public class CardGridOnBoard : MonoBehaviour
 
     private List<CardFlip> spawnedCards = new List<CardFlip>();
 
-    void Start()
+
+    public void SetGridSize(int newRows, int newColumns)
     {
-        if ((rows * columns) % 2 != 0)
-        {
-            Debug.LogError("Number of cards must be even for matching game!");
-            return;
-        }
+        rows = newRows;
+        columns = newColumns;
 
-        if (cardSprites.Count < (rows * columns) / 2)
-        {
-            Debug.LogError("Not enough sprites for the number of card pairs!");
-            return;
-        }
-
+        ClearExistingCards();
         PlaceCardsOnBoard();
+
         GameManager.Instance.RegisterCards(spawnedCards);
+    }
+
+    public void ResetCards()
+    {
+        SetGridSize(rows, columns);
+    }
+
+    void ClearExistingCards()
+    {
+        foreach (var card in spawnedCards)
+        {
+            if (card != null)
+                Destroy(card.gameObject);
+        }
+        spawnedCards.Clear();
     }
 
     void PlaceCardsOnBoard()
     {
         Renderer rend = boardTransform.GetComponentInChildren<Renderer>();
-        if (rend == null)
-        {
-            Debug.LogError("Board must have a Renderer to determine size.");
-            return;
-        }
-
+        
         Vector3 size = rend.bounds.size;
         Vector3 center = rend.bounds.center;
         float topY = rend.bounds.max.y;
@@ -55,8 +60,8 @@ public class CardGridOnBoard : MonoBehaviour
         float usableWidth = size.x - (paddingX * 2f);
         float usableDepth = size.z - (paddingZ * 2f);
 
-        float spacingX = usableWidth / (columns - 1);
-        float spacingZ = usableDepth / (rows - 1);
+        float spacingX = (columns > 1) ? usableWidth / (columns - 1) : 0;
+        float spacingZ = (rows > 1) ? usableDepth / (rows - 1) : 0;
 
         Vector3 startPos = center - (boardTransform.right * (usableWidth / 2f))
                                      + (boardTransform.forward * (usableDepth / 2f));
@@ -101,4 +106,78 @@ public class CardGridOnBoard : MonoBehaviour
             list[rand] = temp;
         }
     }
+
+    public void OnButtonAClick()
+    {
+        SetGridSize(2, 2);
+    }
+
+    public void OnButtonBClick()
+    {
+        SetGridSize(4, 4);
+    }
+
+    public void OnButtonCClick()
+    {
+        SetGridSize(6, 6);
+    }
+
+    public void OnButtonDClick()
+    {
+        SetGridSize(8, 6);
+    }
+
+    public void LoadGridFromCardIDs(List<int> savedCardIDs)
+    {
+        if (savedCardIDs == null || savedCardIDs.Count == 0)
+        {
+            Debug.LogWarning("No saved cards to load.");
+            return;
+        }
+
+        int totalCards = savedCardIDs.Count;
+      
+        rows = Mathf.RoundToInt(Mathf.Sqrt(totalCards));
+        columns = totalCards / rows;
+
+        ClearExistingCards();
+
+        Renderer rend = boardTransform.GetComponentInChildren<Renderer>();
+        Vector3 size = rend.bounds.size;
+        Vector3 center = rend.bounds.center;
+        float topY = rend.bounds.max.y;
+
+        float usableWidth = size.x - (paddingX * 2f);
+        float usableDepth = size.z - (paddingZ * 2f);
+
+        float spacingX = (columns > 1) ? usableWidth / (columns - 1) : 0;
+        float spacingZ = (rows > 1) ? usableDepth / (rows - 1) : 0;
+
+        Vector3 startPos = center - (boardTransform.right * (usableWidth / 2f))
+                                     + (boardTransform.forward * (usableDepth / 2f));
+        startPos.y = topY + heightOffset;
+
+        for (int i = 0; i < savedCardIDs.Count; i++)
+        {
+            int id = savedCardIDs[i];
+            Vector3 offset = (boardTransform.right * ((i % columns) * spacingX))
+                           - (boardTransform.forward * ((i / columns) * spacingZ));
+
+            GameObject cardObj = Instantiate(cardPrefab, startPos + offset, Quaternion.identity, transform);
+            CardFlip cardFlip = cardObj.GetComponent<CardFlip>();
+
+            cardFlip.cardID = id;
+
+            
+            if (id >= 0 && id < cardSprites.Count)
+                cardFlip.SetFrontSprite(cardSprites[id]);
+            else
+                Debug.LogWarning("Card ID " + id + " does not have a matching sprite!");
+
+            spawnedCards.Add(cardFlip);
+        }
+
+        GameManager.Instance.RegisterCards(spawnedCards);
+    }
+
 }
