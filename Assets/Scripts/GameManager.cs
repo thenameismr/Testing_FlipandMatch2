@@ -7,6 +7,7 @@ using TMPro;
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
+    public GameObject cardPrefab;
     public int moveCounter = 0;
     public int score = 0; 
     public int comboMultiplier = 1; 
@@ -88,6 +89,9 @@ public class GameManager : MonoBehaviour
 
             if (firstCard.cardID == secondCard.cardID)
             {
+                firstCard.IsMatched = true;
+                secondCard.IsMatched = true;
+
                 matchSound.Play();
                 moveCounter++;
                 int basePoints = 10; 
@@ -194,16 +198,8 @@ public class GameManager : MonoBehaviour
 
     public void SaveGame()
     {
-        PlayerPrefs.SetInt("MoveCounter", moveCounter);
+        SaveSystem.SaveGame(moveCounter, score, comboMultiplier);
 
-        List<CardFlip> activeCards = allCards.FindAll(card => card != null && card.gameObject.activeInHierarchy);
-        PlayerPrefs.SetInt("CardsCount", activeCards.Count);
-        for (int i = 0; i < activeCards.Count; i++)
-        {
-            PlayerPrefs.SetInt("CardID_" + i, activeCards[i].cardID);
-        }
-
-        PlayerPrefs.Save();
         savedMessage.SetActive(true);
         StartCoroutine(DisableSavedMessage());
     }
@@ -214,31 +210,38 @@ public class GameManager : MonoBehaviour
         savedMessage.SetActive(false);
     }
 
-    public void LoadGame()
+    public void LoadAndApplyGame()
     {
-        if (!PlayerPrefs.HasKey("CardsCount"))
+        GameSaveData saveData = SaveSystem.LoadGame();
+        if (saveData == null) return;
+
+        GameManager.Instance.moveCounter = saveData.moveCounter;
+        GameManager.Instance.score = saveData.score;
+
+        foreach (var card in Object.FindObjectsByType<CardFlip>(FindObjectsSortMode.None))
         {
-            Debug.LogWarning("No saved game found!");
-            return;
+            Destroy(card.gameObject);
         }
-        //movesPanel.SetActive(false);
-        moveCounter = PlayerPrefs.GetInt("MoveCounter");
 
-        int cardCount = PlayerPrefs.GetInt("CardsCount");
-
-        CardGridOnBoard grid = Object.FindFirstObjectByType<CardGridOnBoard>();
-        if (grid != null)
+        foreach (var cardData in saveData.cards)
         {
-            IntroManager.Instance.Ready();
-            List<int> savedCardIDs = new List<int>();
-            for (int i = 0; i < cardCount; i++)
+            GameObject cardObj = Instantiate(cardPrefab, new Vector3(cardData.posX, cardData.posY, cardData.posZ), Quaternion.identity);
+            CardFlip cardFlip = cardObj.GetComponent<CardFlip>();
+            cardFlip.cardID = cardData.cardID;
+
+            Sprite frontSprite = Resources.Load<Sprite>($"Cards/{cardData.spriteName}");
+            if (frontSprite != null)
             {
-                savedCardIDs.Add(PlayerPrefs.GetInt("CardID_" + i));
+                cardFlip.SetFrontSprite(frontSprite);
             }
-            grid.LoadGridFromCardIDs(savedCardIDs);
+
+            if (cardData.isFlipped)
+                StartCoroutine(cardFlip.FlipAnimation(true));
+            else
+                StartCoroutine(cardFlip.FlipAnimation(false));
         }
 
-        
+        IntroManager.Instance.Ready();
         StartCoroutine(EnablePauseButtonNextFrame());
     }
 

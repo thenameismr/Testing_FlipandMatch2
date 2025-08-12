@@ -9,6 +9,12 @@ public class CardFlip : MonoBehaviour
     public int cardID;
     public AudioSource cardFlipSound;
 
+    public bool IsMatched { get; set; }
+
+    public bool IsFlipped
+    {
+        get { return isFlipped; }
+    }
     private bool isFlipped = false;
     private bool isFlipping = false;
     private MeshRenderer frontMeshRenderer;
@@ -23,6 +29,7 @@ public class CardFlip : MonoBehaviour
     void Start()
     {
         ShowBack();
+        IsMatched = false;
     }
 
     public void SetFrontSprite(Sprite sprite)
@@ -46,12 +53,14 @@ public class CardFlip : MonoBehaviour
 
     public IEnumerator FlipAnimation(bool showFront)
     {
+        cardFlipSound.Play();
+
         isFlipping = true;
         sideSwitched = false;
         float startAngle = Mathf.Repeat(transform.localEulerAngles.y, 360f);
         float endAngle = showFront ? startAngle + 180f : startAngle - 180f;
 
-        cardFlipSound.Play();
+        
         float t = 0f;
         while (t < 1f)
         {
@@ -85,5 +94,16 @@ public class CardFlip : MonoBehaviour
     {
         front.SetActive(false);
         back.SetActive(true);
+    }
+
+    public string GetFrontSpriteName()
+    {
+        if (frontMeshRenderer != null && frontMeshRenderer.material != null)
+        {
+            Texture texture = frontMeshRenderer.material.GetTexture("_BaseMap");
+            if (texture != null)
+                return texture.name;
+        }
+        return "";
     }
 }
